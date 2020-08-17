@@ -1,0 +1,4 @@
+
+
+PATH=$PATH:/home/mobaxterm/MyDocuments/Julia-1.4.2/bin/
+PATH=$PATH:/drives/C/Users/Micha/Documents/Julia\ 1.5.0/bin
