@@ -248,8 +248,6 @@ for line in eachline(infile)
 	else
 		dnastring = dnastring * line
 	end 
-
-
 end
 
 
@@ -260,15 +258,7 @@ for char in dnastring
 	
 	global reversestring
 
-	if char == 'A'
-		reversestring = reversestring* "T"
-	elseif char =='T'
-		reversestring =reversestring * "A"
-	elseif char =='C'
-		reversestring =reversestring * "G"
-	elseif char =='G'
-		reversestring =reversestring * "C"	
-	end 
+
 
 end
 
