@@ -406,9 +406,8 @@ function get_exon(sequence,exon)
 	outexon = []
 
 	exonsplit = split(exon[1:end]," ")[1:(end-1)]
-	println(exonsplit)
-	for item in exonsplit
 
+	for item in exonsplit
 		item = split(item,"..")
 
 		first = parse(Int,item[1])

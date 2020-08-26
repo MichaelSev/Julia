@@ -452,13 +452,10 @@ for line in eachline(infile)
 		m = match(r"\d+..\d+", line)
 		exon *=m.match*" " 
 	end
-
 end
 
 
 print_exon(dnaseq,exon)
-
-
 
 close(infile)
 
