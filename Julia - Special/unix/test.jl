@@ -83,8 +83,6 @@ function readdata(readfileout)
 	cancerindexlen = length(cancerindex)
 	healtyindexlen = length(healtyindex)
 
-	println("$(accnum[cancerindex])")
-
 	println("Cancer data \t Healty data ")
 	for i in 1:max(healtyindexlen,cancerindexlen)
 
@@ -100,11 +98,8 @@ function readdata(readfileout)
 		else 
 			print("\n")
 		end	
-
-
 	end
 end 
-
 
 
 ####PROGRAM HERE
