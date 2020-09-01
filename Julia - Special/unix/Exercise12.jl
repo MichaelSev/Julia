@@ -1,6 +1,9 @@
 #!/usr/bin/julia
 
 
+#NOOOOT DONE!!!
+
+
 ####Exercise 1
 
 #a) For finding the variant and gene mutation, the first word should be FT 
@@ -32,6 +35,9 @@ function read_file(filename::String,outname::String)
 	sequnceflag = false
 	sequence = ""
 
+	#MUTATIONS SHOULD BE MADE IT ITS OWN TYPE!!! 
+	mutations = ""
+
 	for line in eachline(infile)
 		line = split(line)
 
@@ -54,7 +60,14 @@ function read_file(filename::String,outname::String)
 
 		#Get the mutations 
 		if line[1] == "FT"
-			println(line)
+			
+			
+			if line[2] == VARIANT
+				mutations 
+
+			elseif line[2] =="MUTAGEN"
+
+			end 
 		end
 
 
@@ -70,4 +83,30 @@ end
 
 
 read_file("appendix1.txt","appendix1out.fsa")
+
+
+##not done either
+####Exercise 2
+
+#Appendix5 is the translation file
+#Appendix4 is the blacklist
+#Appendix3 is the information 
+
+#Pseucode 
+#For line in appendix5, save in dict with key and value as the translation 
+
+#For line in appendix4, translate it into swiss, according to the dict, save it in a set (could also be a list and then found by binary search)
+
+#For line in appendix 3, if key not in set, calculate the mean and save it in dict 
+
+
+#c) Assumed that all infromation is contained in the translation list, assumed that the order of the files are build the same way always, it does not exeed memory, that there are at least two results for finding top and bottom. 
+
+#d) That there are atleast 10 of each should be considered, 
+
+
+#ACCUTAL CODE 
+
+
+blaa 
 
