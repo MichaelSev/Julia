@@ -1,0 +1,31 @@
+What to be opmærksom på 
+
+
+1) Få styr på dit whitespace
+2) Få styr på dine print statements, disse skal ud. 
+
+3) Use functions to everything, og del op i små funktioner. 
+Eksempel: 
+
+function write_to(io::IO)
+    input = ""
+    while input != "STOP"
+        input = readline()
+        println(io, input)
+    end
+end
+
+
+
+function copy_deduplicated(in::IO, out::IO)
+    lines = collect(eachline(in))
+    for line in deduplicated(lines)
+        println(out, line)
+    end
+end
+
+
+4) Be sure it works
+
+
+
