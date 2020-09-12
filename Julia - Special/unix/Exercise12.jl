@@ -1,9 +1,3 @@
-#!/usr/bin/julia
-
-
-#NOOOOT DONE!!!
-
-
 ####Exercise 1
 
 #a) For finding the variant and gene mutation, the first word should be FT 
@@ -25,7 +19,6 @@
 
 
 #The code from part c. 
-
 function read_file(filename::String,outname::String)
 	#Read file and get the name and sequence 
 
@@ -36,7 +29,8 @@ function read_file(filename::String,outname::String)
 	sequence = ""
 
 	#MUTATIONS SHOULD BE MADE IT ITS OWN TYPE!!! 
-	mutations = ""
+	mutations = Dict{String,String}()
+
 
 	for line in eachline(infile)
 		line = split(line)
@@ -57,35 +51,49 @@ function read_file(filename::String,outname::String)
 			sequnceflag = true 
 		end
 
-
 		#Get the mutations 
 		if line[1] == "FT"
-			
-			
-			if line[2] == VARIANT
-				mutations 
+			if line[2] == "VARIANT"
+				
+				push!(mutations,line[3] => join(line[5:7]))
 
 			elseif line[2] =="MUTAGEN"
-
+				push!(mutations,line[3] => line[5][1:4])
 			end 
 		end
-
-
 	end 
 
+	#Do the mutation 
+	bytes =  Vector{UInt8}(sequence)
+	for key in keys(mutations)
+		position = parse(Int64,key)
+		#If correct position 
+		if sequence[position]==mutations[key][1]
+			bytes[position] = mutations[key][4]
+		else
+			println("The mutations and sequence are not in compliance with eachother, at $position")
+		end
+	end
 
+	print_sequence(sequence,outfile)
 
-	println(sequence)
 	close(infile)
 	close(outfile)
-
 end
 
+
+function print_sequence(seq,outfilename)
+	number = Int(floor(length(seq)/60))
+	for i in 1:60:number*60
+		println(outfilename,seq[i:i+59])
+	end 
+	println(outfilename,seq[(number*60+1):length(seq)])
+end
 
 read_file("appendix1.txt","appendix1out.fsa")
 
 
-##not done either
+
 ####Exercise 2
 
 #Appendix5 is the translation file
@@ -104,9 +112,99 @@ read_file("appendix1.txt","appendix1out.fsa")
 
 #d) That there are atleast 10 of each should be considered, 
 
+####The code 
 
-#ACCUTAL CODE 
+function get_blacklistfile(filename::String)
+	#Get the blacklist as set from appendix 4
+	infile = open(filename,"r")
+	
+	blacklist = Set{String}()
+	for line in eachline(infile)
+		push!(blacklist,line)
+	end
+
+	#End
+	close(infile)
+	return(blacklist)
+end
+
+function get_informationfile(filename::String)
+	infile = open(filename,"r")
+	informations = Dict{String, Float64}()
+
+	for line in eachline(infile)
+		line = split(line)
+		#Key= line[1], value =mean of line[2:end]
+		push!(informations,line[1]=>sum(parse.(Float64,line[2:end])/length(line[2:end])))
+
+	end
+	close(infile)
+
+	return informations
+end
+
+function get_translation(filename::String)
+	#Get the translation from appendix file 
+
+	infile = open(filename,"r")
+	informations = Dict{String, String}()
+
+	for line in eachline(infile)
+		line = split(line)
+		#Key= Swissprot, value=Genbank
+		push!(informations,line[1]=>line[3])
+	end
+	close(infile)
+	return informations
+end 
+
+function remove_blacklist(data::Dict,blacklist::Set,translation::Dict)
+	#First shall the blacklist be translated 
+	blacklisttranslated = Set{String}()
+	for item in blacklist
+		push!(blacklisttranslated,translation[item])
+	end
+	
+	#Find the interasections
+	datakey = Set{String}(keys(data))
+	intersections = intersect(datakey,blacklisttranslated)
+
+	#pop the intersections
+	for item in intersections 
+		delete!(data,item)
+	end
+
+	return data
+end 
+
+function sort_and_print_dict(dictname::Dict)
+	#sort and print the dict by value
+
+	#I have to say, I like this method. 
+	means = [(acc, v) for (acc, v) in dictname]
+    
+    sort!(means, by=x -> x[2], rev=true)
+
+    #Print statements 
+	println("The higest value is $(round(means[1][2],sigdigits=5)) with the ID: $(means[1][1]) ")
+	println("The lowest value is $(round(means[end][2],sigdigits=5)) with the ID: $(means[end][1]) ")
+end 
+
+function do_the_job()
+	#Read the file and get the informations
+	blacklist 	= get_blacklistfile("appendix4.txt")
+	data  		= get_informationfile("appendix3.txt")
+	translation = get_translation("appendix5.txt")
+
+	#Remove the blacklisted items from the data
+	data = remove_blacklist(data,blacklist,translation)
+
+	#print the reamning values 
+	sort_and_print_dict(data)
+end
 
 
-blaa 
+#Call the script
+do_the_job()
+
 
