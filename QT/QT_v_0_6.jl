@@ -69,16 +69,13 @@ end
 #Distance matrix functions
 
 
-function eucledian_distance(string1::Array{Float64,1},string2::Array{Float64,1})
+function eucledian_distance(string1,string2)
 	#Eucledian distance formula 
-	distance = 0 
+	distance = 0.0
 	for i in 1:length(string1)
-
 		distance += (string1[i]-string2[i])^2
-
 	end
-
-	return round(sqrt(distance),digits=5)
+	return sqrt(distance)
 end
 
 
@@ -88,30 +85,27 @@ function calculate_distanceMatrix(PointPosition::Vector)
 	matrixsize = length(PointPosition)
 	matrixsize2 = length(split(PointPosition[1]))
 
-	PointMatrix    = zeros(Float64, matrixsize,matrixsize2)
+	PointMatrix    = zeros(Float64, matrixsize2,matrixsize)
 	distanceMatrix = zeros(Float64, matrixsize,matrixsize)
+
+	#distanceMatrix = Array{Float64,2}(undef,matrixsize,matrixsize)
 
 	#Convert the points from string to float
 	for i in 1:matrixsize
-		PointMatrix[i,:] =  round.(parse.(Float64,split(PointPosition[i])), digits=5)
+	
+		PointMatrix[:,i] =  parse.(Float64,split(PointPosition[i]))
 	end
 
 	#Calculate the distance matrix
 	for i in 1:matrixsize
-		for j in 1:matrixsize 
-
-			#Do not calcualte the diagonal, default zero 
-			if i != j || i > j 
-				distance = eucledian_distance(PointMatrix[i,:],PointMatrix[j,:])
-
-				#NOTE NOTE NOTE 
-				#Consider adding the points to the threshold matrix here also, this is now done later in the process 
-				distanceMatrix[i,j] = distance
-				distanceMatrix[j,i] = distance		
-			end
+		for j in i+1:matrixsize 
+			distance = eucledian_distance(view(PointMatrix,:,i),view(PointMatrix,:,j))
+			#distance = eucledian_distance(PointMatrix[:,i],PointMatrix[:,j])
+			distanceMatrix[i,j] = distance
+			distanceMatrix[j,i] = distance		
+			
 		end
 	end	
-	
 	return distanceMatrix
 end
 
@@ -126,24 +120,16 @@ function threshold_handler(distanceMatrix::Array{Float64,2},threshold::String)
 	else
 		threshold = parse(Float64,threshold)
 	end
-
-
-
-	return round(threshold, digits=5)
-
+	return threshold
 end
 
 
-
-function make_whitelist(blacklist,datasize)
-	return setdiff(Vector{Int64}(1:1:datasize), blacklist)
+function make_whitelist(whitelist,blacklist)
+	return setdiff(whitelist, blacklist)
 end
-
 
 
 function make_potentialcluster(distanceMatrix::Array{Float64,2},threshold,whitelist)
-	
-
 	#Define which points there are suitable for being a part of the QT cluster. 
 	#This would be an obvious part to make my own type, which i have written behind my ear 
 	
@@ -151,8 +137,8 @@ function make_potentialcluster(distanceMatrix::Array{Float64,2},threshold,whitel
 	m = size(distanceMatrix,1)
 	
 	potentialclusters = Vector{Array{Int64,1}}()
-	for i in whitelist
-
+	counter = 1
+	for i in 1:m 
 		#CC = potential for current cluster 
 		cc = Vector{Int64}()
 		push!(cc,i)
@@ -166,9 +152,31 @@ function make_potentialcluster(distanceMatrix::Array{Float64,2},threshold,whitel
 		end
 		push!(potentialclusters,cc)
 	end
-	
+
+
 	return potentialclusters
 
+end
+
+function update_potentialcluster(distanceMatrix,threshold,whitelist,potentialclusters)
+	
+	for item in whitelist
+		if isempty(potentialclusters[item])
+			cc = Vector{Int64}()
+			push!(cc,item)
+			
+			for j in whitelist
+
+				#If not its own position, and the distance is lower than the threshold
+				if j != item  && distanceMatrix[item,j] <= threshold
+					push!(cc,j)
+				end
+			end
+			potentialclusters[item] = cc
+		end
+	end
+
+	return potentialclusters
 end
 
 ######################################
@@ -179,12 +187,12 @@ end
 ######################################
 
 
-function make_candidatecluster(distanceMatrix::Array{Float64,2},threshold::Float64,candidatepoints)
+function make_candidatecluster(distanceMatrix::Array{Float64,2},threshold::Float64,candidatepoints,outcluster)
 
 	out = Vector{Int64}()
 	push!(out,candidatepoints[1])
 	popat!(candidatepoints,1)
-	selecteddistance = 0 
+	selecteddistance = zero(eltype(distanceMatrix)) 
 
 	newpointdistance = distanceMatrix[out[1],candidatepoints]
 
@@ -192,15 +200,16 @@ function make_candidatecluster(distanceMatrix::Array{Float64,2},threshold::Float
 
 		nearstpointindex = argmin(newpointdistance)
 		selecteddistance = newpointdistance[nearstpointindex]
+
 		push!(out,candidatepoints[nearstpointindex])
 		popat!(candidatepoints,nearstpointindex)
 		popat!(newpointdistance,nearstpointindex)
 
-
 		#Update distance 
-
 		for i in length(newpointdistance):-1:1
 			item = newpointdistance[i]
+
+			#Can be ooptimized here by moving the second statement into the first statement 
 			if item < distanceMatrix[out[end],candidatepoints[i]]
 				newpointdistance[i]=distanceMatrix[out[end],candidatepoints[i]]
 			end
@@ -210,48 +219,64 @@ function make_candidatecluster(distanceMatrix::Array{Float64,2},threshold::Float
 				popat!(newpointdistance,i)
 			end
 		end
-	
 
-
+		#It works, but is highly inefficient, something else should be reconsidered. 
+		if length(out) == 1000 ||  length(out) == 1000 || length(out) == 1000
+			flag = check_alreadymade_cluster(outcluster,out)
+			if flag 
+				print("YES")
+				candidatepoints =  Vector{Int64}()
+			end
+		end
 	end
-
-
+	 
 	return out, selecteddistance
+end
+
+function check_alreadymade_cluster(outcluster,currentout)
+	newcluster = false
+	for item in outcluster
+		if length(currentout) <= length(item)
+			
+			if sort(item[1:length(currentout)]) == sort(currentout)
+				#println("YES")
+				newcluster = true
+			end
+		end
+	end
+	return newcluster 
 end
 
 
 
 
-function qt_clustering(distanceMatrix::Array{Float64,2},threshold,potentialclusters)
-	
+function qt_clustering(distanceMatrix::Array{Float64,2},threshold,potentialclusters,outcluster,outclusterdistance)
+
 	#The dimensions of the matrix 
 	m = size(distanceMatrix,1)
 	n = size(distanceMatrix,2)
 	
-
-	outcluster = Vector{Array{Int64,1}}()
-	outclusterdistance = Vector{Float64}()
+	potentialclusters_copy = copy(potentialclusters) 
+	
+	
 	#For each start position 
 
-	for item in potentialclusters
+	counter = 0 
+	for item in potentialclusters_copy
+		counter += 1
 
-		
-		#End the end, there will only be one point 
+		#In the end, there will only be one point, this can be left out, does no much for the speed 
 		if length(item) >1
-			outlist, distancenum = make_candidatecluster(distanceMatrix,threshold,item)
-			push!(outcluster,outlist)
-			push!(outclusterdistance,distancenum)
+
+			outlist, distancenum = make_candidatecluster(distanceMatrix,threshold,item,outcluster)
+			outcluster[counter]=outlist
+			outclusterdistance[counter]=distancenum
 		else
-			push!(outcluster,item)
-			push!(outclusterdistance,0.)
+			outcluster[counter]=item
+			outclusterdistance[counter]=0.
 		end 
 	end
-
-	#Find the biggest cluster and return it 
-	biggestclusterpoint = get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance)
-
-	return sort(biggestclusterpoint)
-
+	return outclusterdistance, outcluster
 end
 
 
@@ -260,8 +285,9 @@ function get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance)
 	clutsersize = length(outcluster[1])
 	cluterdiameter = outclusterdistance[1] 
 	cluster = 1
-	 
-	for i in 1:length(outcluster)
+	
+	#From 2, because the first cluster is the one above
+	for i in 2:length(outcluster)
 		
 		#Find largest cluster
 		if clutsersize < length(outcluster[i])
@@ -270,14 +296,13 @@ function get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance)
 			cluster = i
 		end
 
-
 		if clutsersize == length(outcluster[i]) && cluterdiameter > outclusterdistance[i]
 			clutsersize = length(outcluster[i])
 			cluterdiameter = outclusterdistance[i] 
 			cluster = i
 		end		
 	end
-	return outcluster[cluster]
+	return sort(outcluster[cluster])
 end	
 
 
@@ -288,48 +313,93 @@ end
 ######################################
 ######################################
 
+function recycle_finish_cluster(biggestclusterpoint,potentialclusters,outcluster,blacklist,outclusterdistance)
 
-function qt_clustering(filename,clustersizegiven)
+	#Turn it around, due to indexing
+	biggestclusterpointrev = sort(biggestclusterpoint,rev=true)
 
+
+
+	for item in potentialclusters
+		if length(item) != 0  
+			uniqueness = intersect(biggestclusterpointrev,item)
+			index = item[1,1]
+			if isempty(uniqueness)
+				#Delete the potentialcluster, because it shall not be calculated in next interation
+				#println(item)
+				potentialclusters[index] = Vector{Int64}()
+			else
+				tester = potentialclusters[index]
+				potentialclusters[index] = setdiff(tester,biggestclusterpointrev)
+				outclusterdistance[index] = 0.
+				outcluster[index] = Vector{Int64}()
+			end
+		end
+	end
+
+	return outclusterdistance, outcluster, potentialclusters
+end
+
+function update_blacklist(blacklist,newcluster)
+	return union(blacklist,newcluster)
+end
+
+function print_output(biggestclusterpoint)
+	for item in biggestclusterpoint
+		#push!(blacklist,item)
+		print("$(item-1) ")
+	end 
+	print("\n")
+end
+
+function qt(filename, inputargument)
 	Colnames, PointPosition = read_file(filename)
-
 	distanceMatrix = calculate_distanceMatrix(PointPosition)
-	threshold = threshold_handler(distanceMatrix,clustersizegiven)
+	threshold = threshold_handler(distanceMatrix,inputargument)
+
 
 	blacklist = Vector{Int64}()
+	whitelist = Vector{Int64}(1:1:size(distanceMatrix,1))
+	
+	#Can find out of, if the set is faster, need more testing
+	#blacklist = Set{Int64}()
+	#whitelist = Set{Int64}(1:1:size(distanceMatrix,1))
 
+	outcluster = Vector{Array{Int64,1}}()
+	outclusterdistance = Vector{Float64}()
+	for i in 1:size(distanceMatrix,1)
+		push!(outcluster,Vector{Int64}())
+		push!(outclusterdistance,0.)
+	end
 
+	potentialclusters = make_potentialcluster(distanceMatrix,threshold,whitelist)
 
+	while length(whitelist) != 0 
+		
+		
+		outclusterdistance, outcluster = qt_clustering(distanceMatrix,threshold,potentialclusters,outcluster,outclusterdistance)
+		biggestclusterpoint = get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance)
 
-	for i in 1:1000
-		#global threshold, distanceMatrix
-		whitelist = make_whitelist(blacklist,size(distanceMatrix,1))
-
-		if length(whitelist) == 0 
-			break 
-		else 
-
-			potentialclusters = make_potentialcluster(distanceMatrix,threshold,whitelist)
-
-
-			out = qt_clustering(distanceMatrix,threshold,potentialclusters)
-
-
-			for item in out
-				push!(blacklist,item)
-				#print("$(item-1) ")
-			end 
-			#print("\n")
-		end
-
-
+		#The potential clusters, are popped each time in qt_clustering, i can not find a way to make a good copy. 
+		#It is even deleted, but there is no return of it?, i find this strange 
+		
+	
+		print_output(biggestclusterpoint)
+		
+		blacklist = update_blacklist(blacklist,biggestclusterpoint)
+		whitelist = make_whitelist(whitelist,blacklist)
+		outclusterdistance, outcluster, potentialclusters = recycle_finish_cluster(biggestclusterpoint,potentialclusters,outcluster,blacklist,outclusterdistance)
+		potentialclusters = update_potentialcluster(distanceMatrix,threshold,whitelist,potentialclusters)
 	end 
+end 
+
+
+for i in 1:1
+	@time qt(ARGS[1], ARGS[2])
 end
 
 
 
 
 
-for i in 1:10
-	qt_clustering(ARGS[1],ARGS[2])
-end
+
