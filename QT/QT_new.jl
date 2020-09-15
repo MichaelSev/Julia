@@ -347,7 +347,6 @@ function qt(filename, inputargument)
 		potentialclusters = make_potentialcluster(distanceMatrix,threshold,acceptancelist.whitelist,acceptancelist.greylist)[1]
 		potentialclusterlist = Potentialclusterlist(potentialclusterlist.original,potentialclusters)
 		
-		println(sort(finishCandidateCluster,rev=true)[1:10])
 		push!(FINISH_CLUTSERTOPRINT,finishCandidateCluster)
 	end
 
