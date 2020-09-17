@@ -242,11 +242,11 @@ function check_alreadymade_cluster(outcluster,currentout,localcount)
 
 	for seed in iterator
 		comparecombject = sort(outcluster[1:localcount,seed])
-		if comparecombject != item
-			return false 
+		if comparecombject == item
+			return true 
 		end
 	end
-	return true 
+	return false 
 end
 
 ######################################
