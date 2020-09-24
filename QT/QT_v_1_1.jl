@@ -61,10 +61,10 @@ end
 
 #### DISTANCE MATRIX 
 
-function eucledian_distance(string1,string2)
+function eucledian_distance(string1,string2,size)
 	#Eucledian distance formula 
 	distance = 0.0
-	for i in 1:length(string1)
+	for i in 1:size
 		distance += (string1[i]-string2[i])^2
 	end
 	return sqrt(distance)
@@ -85,10 +85,11 @@ function calculate_distanceMatrix(PointPosition::Vector)
 		PointMatrix[:,i] =  parse.(Float64,split(PointPosition[i]))
 	end
 
+	itemsize = length(PointMatrix[:,1])
 	#Calculate the distance matrix
 	for i in 1:matrixsize
 		for j in i+1:matrixsize 
-			distance = eucledian_distance(view(PointMatrix,:,i),view(PointMatrix,:,j))
+			distance = eucledian_distance(view(PointMatrix,:,i),view(PointMatrix,:,j),itemsize)
 			distanceMatrix[i,j] = distance
 			distanceMatrix[j,i] = distance
 		end
@@ -99,7 +100,6 @@ end
 function threshold_handler(distanceMatrix::Array{Float64,2},threshold::String)
 	#Define the threshold
 	maxdistsance = maximum(distanceMatrix)
-
 	if threshold[end] == '%'
 		threshold = maxdistsance*(parse(Float64,threshold[1:(end-1)])/100)
 	else
@@ -122,7 +122,6 @@ struct Acceptancelist
 end
 
 function  update_colorlist(acceptancelist,recalculatelist,finishCandidateCluster,distanceMatrix)
-
 	blacklist = union(acceptancelist.blacklist,finishCandidateCluster)
 	whitelist = setdiff(acceptancelist.whitelist,blacklist)
 	greylist = setdiff(recalculatelist,blacklist)
@@ -172,7 +171,7 @@ end
 ############## PART 3 ################
 ######################################
 ######################################
-function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candidateclustermatrix::Array{Int64,2},candidatepoints::Array{Int64,1})
+function make_candidatecluster(distanceMatrix::Array{Float64,2},threshold,candidateclustermatrix::Array{Int64,2},candidatepoints::Array{Int64,1})
 	#Calculate a candidate cluster
 
 	#Initilize objects
@@ -185,6 +184,7 @@ function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candi
 
 	popat!(candidatepoints,1)
 	localcount = 1
+
 	#Find all candidate points 
 	while length(candidatepoints) > 0 
 
@@ -193,21 +193,18 @@ function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candi
 
 		nearstpointindex = argmin(newpointdistance)
 		selecteddistance = newpointdistance[nearstpointindex]
-
 		candidateCluster[localcount] = candidatepoints[nearstpointindex]
 
-		#Remove elements, I have considered do a true/false indexing instead of popping. 
-		#Nut sure if i am up for to many elements. 
 		popat!(candidatepoints,nearstpointindex)
 		popat!(newpointdistance,nearstpointindex)
 
 		#Update distance 
 		for i in length(newpointdistance):-1:1
-			item = newpointdistance[i]
+		
 			checkdistance =  distanceMatrix[candidateCluster[localcount],candidatepoints[i]]
-			
+	
 			#Check if the distance should be updated and afterwards exceeds the threshold 
-			if item < checkdistance
+			if newpointdistance[i] < checkdistance 
 				if checkdistance > threshold
 					popat!(candidatepoints,i)
 					popat!(newpointdistance,i)
@@ -217,12 +214,10 @@ function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candi
 			end			
 		end
 
-		#Check if the cluster has already be calculated 
-		if localcount== 2 || localcount == 5 || localcount == 10 || localcount == 20
-		#if any(x->x==localcount, [2,5,10,20])
-
+		#Check if the cluster has already be calculated, generic ways has been tested, but this is by far the fastest
+		if localcount== 2 || localcount == 5 || localcount == 10 || localcount == 15 || localcount == 20 || localcount == 50 
 			if check_alreadymade_cluster(candidateclustermatrix,candidateCluster,localcount) 
-				candidatepoints =  Vector{Int64}()
+				break
 			end
 		end
 	end
@@ -233,15 +228,12 @@ end
 
 function check_alreadymade_cluster(outcluster,currentout,localcount)
 	#Check if there already have been calculated a cluster, identical with the current. 
-	item = currentout[1:localcount]
-	iterator = item[2:end]
-	item = sort(item)
+	item = sort(currentout[1:localcount])
 
 	#Check all other candidate cluster, with the same points 
-	for seed in iterator
-		comparecombject = sort(outcluster[1:localcount,seed])
-		if comparecombject == item
-
+	for seed in item
+		compareobject = sort(outcluster[1:localcount,seed])
+		if compareobject == item
 			return true 
 		end
 	end
@@ -254,22 +246,20 @@ end
 ######################################
 ######################################
 
-function qt_clustering!(distanceMatrix::Array{Float64,2},threshold,potentialClusters::Array{Int64,2},candidateClusterMatrix::Array{Int64,2},
+function qt_clustering(distanceMatrix::Array{Float64,2},threshold,potentialClusters::Array{Int64,2},candidateClusterMatrix::Array{Int64,2},
 candidateClusterDistance::Array{Float64,1},greylist)
-
 	#The dimensions of the matrix 
 
-	for item in greylist
-		pos = item 
-		item = potentialClusters[:,item]
-
-		if length(item) >1
-			candidateCluster,candidateDistance = make_candidatecluster!(distanceMatrix,threshold,candidateClusterMatrix,item)
+	for pos in greylist
+		potentiallist = potentialClusters[:,pos]
+	
+		if length(potentiallist) >1
+			candidateCluster,candidateDistance = make_candidatecluster(distanceMatrix,threshold,candidateClusterMatrix,potentiallist)
 			candidateClusterMatrix[:,pos]=candidateCluster
 			candidateClusterDistance[pos]=candidateDistance
 		#If only one cluster back 
 		else	
-			candidateClusterMatrix[1,pos]= item[1]
+			candidateClusterMatrix[1,pos]= potentiallist[1]
 			candidateClusterDistance[pos]=0.
 		end 		
 	end
@@ -277,7 +267,7 @@ candidateClusterDistance::Array{Float64,1},greylist)
 end
 
 
-function get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance)
+function get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance,whitelist)
 	#Find the biggest cluster and return it sorted 
 
 	#The lowest number will always be zero (unless it is full, which is very imposible)
@@ -286,20 +276,14 @@ function get_biggest_cluster(outcluster,distanceMatrix,outclusterdistance)
 	cluster = 1
 
 	#From 2, because the first cluster is the one above
-	for i in 2:size(outcluster,2)
-		pos = argmin(outcluster[:,i])
+	for i in whitelist
+		pos = argmin(view(outcluster,:,i))
 
 		#Find largest cluster
-		if clutsersize < pos
-			clutsersize = pos
-			cluterdiameter = outclusterdistance[i] 
-			cluster = i
-		end
-
 		if clutsersize == pos && cluterdiameter > outclusterdistance[i]
-			clutsersize = pos
-			cluterdiameter = outclusterdistance[i] 
-			cluster = i
+			clutsersize,cluterdiameter,cluster = pos, outclusterdistance[i], i 
+		elseif 	clutsersize < pos
+			clutsersize,cluterdiameter,cluster = pos, outclusterdistance[i], i 
 		end		
 	end
 	return outcluster[:,cluster]
@@ -335,31 +319,34 @@ function qt(filename, inputargument)
 
 	#Until all are clustered 
 	while length(acceptancelist.whitelist) != 0 
-
+		println("New turn \n \n \n")
 		#Do the QT clustering, calculate all candidate clusters
-		candidateClusterDistance, candidateClusterMatrix = qt_clustering!(distanceMatrix,threshold,potentialclusterlist.iterazeable,
+		print("Cluster time:")
+		@time candidateClusterDistance, candidateClusterMatrix = qt_clustering(distanceMatrix,threshold,potentialclusterlist.iterazeable,
 		candidateClusterMatrix,candidateClusterDistance,acceptancelist.greylist)
+	
 
 		#Find the biggest cluster
-		finishCandidateCluster = get_biggest_cluster(candidateClusterMatrix,distanceMatrix,candidateClusterDistance)
-
+		finishCandidateCluster = get_biggest_cluster(candidateClusterMatrix,distanceMatrix,candidateClusterDistance,acceptancelist.whitelist)
 		#Sort the reamning candidate clusters, if any not should be calculated again. 
-		recalculatelist,candidateClusterMatrix,candidateClusterDistance = recycle_clusters(potentialclusterlist,finishCandidateCluster,candidateClusterMatrix,candidateClusterDistance)
+		print("Recycle time: ")
+
+		@time recalculatelist,candidateClusterMatrix,candidateClusterDistance = recycle_clusters(potentialclusterlist.original,finishCandidateCluster[1:argmin(finishCandidateCluster)],candidateClusterMatrix,candidateClusterDistance,acceptancelist.whitelist)
 
 		#Update the black, grey and whitelist. 
 		acceptancelist = update_colorlist(acceptancelist,recalculatelist,finishCandidateCluster,distanceMatrix)
 
 		#Find those there should be calculated again
+
 		potentialclusters = make_potentialcluster(distanceMatrix,threshold,acceptancelist.whitelist,acceptancelist.greylist)[1]
 		potentialclusterlist = Potentialclusterlist(potentialclusterlist.original,potentialclusters)
 		
 		#Push the outcluster 
-		#println(finishCandidateCluster)
+		println(finishCandidateCluster[1:5])
 		push!(FINISH_CLUTSERTOPRINT,finishCandidateCluster)
 	end
 
 	#Write to file
-
 	print_output(FINISH_CLUTSERTOPRINT,Colnames, PointPosition)
 end
 
@@ -381,36 +368,36 @@ function print_output(FINISH_CLUTSERTOPRINT,Colnames, PointPosition)
 end
 
 
-function recycle_clusters(potentialclusterlist,finishCandidateCluster,candidateClusterMatrix,candidateClusterDistance)
+function recycle_clusters(checklist,finishCandidateCluster,candidateClusterMatrix,candidateClusterDistance,whitelist)
 	#The final removal betweeen the grey and black list of the finished cluster, can be found in the color function 
 
-	recalculatelist = Array{Int64,1}()
 
-	for i in 1:1:size(candidateClusterMatrix,2)
-		item = view(potentialclusterlist.original,:,i)
-		
+	emptylist = zeros(Int64,size(candidateClusterMatrix,1))
+	#This is only worth it, for a given size
+
+	recalculatelist,localcount = zeros(Int64,size(candidateClusterMatrix,2)) ,1
+
+	for i in whitelist
 		#1, because there is always zero in list  zero
-		if length(intersect(finishCandidateCluster,item)) != 1 
-			push!(recalculatelist,i)
-			
+		if length(intersect(finishCandidateCluster,checklist[:,i])) != 1 
+			recalculatelist[localcount] = i
+	
+
 			#The fill function does not work like this...
-			candidateClusterMatrix[:,i] = zeros(Int64,size(candidateClusterMatrix,1))
-			candidateClusterDistance[i] = 0 
+			candidateClusterMatrix[:,i] = emptylist
+			candidateClusterDistance[i] = 0.
 		end
 	end
-	return(recalculatelist,candidateClusterMatrix,candidateClusterDistance)
-end
 
+	return(recalculatelist[1:localcount],candidateClusterMatrix,candidateClusterDistance)
+end
 
 ######################################
 ######################################
 ############# PART END ###############
 ######################################
 ######################################
-
 filename = ARGS[1]
 inputargument = ARGS[2]
 
 @time qt(filename, inputargument)
-
-

@@ -174,7 +174,6 @@ function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candi
 	#Initilize objects
 	candidateCluster = 	candidateClusterMatrix[:,end]
 	candidateCluster[1] = pos
-
 	candidatepoints = candidatepoints[2:argmin(candidatepoints)-1]
 	newpointdistance = distanceMatrix[candidatepoints,pos]
 	localcount = 1
@@ -183,13 +182,14 @@ function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candi
 	while length(candidatepoints) > 0 
 		#Check if the cluster has already be calculated, generic ways has been tested, but this is by far the fastest
 		if localcount==  2 || localcount == 5 || localcount == 10 || localcount == 15 || localcount == 20 || localcount == 50  || localcount == 100  
-			if check_alreadymade_cluster(candidateClusterMatrix,sort!(candidateCluster[1:localcount]),localcount) 
+			if check_alreadymade_cluster(candidateClusterMatrix,candidateCluster[1:localcount],localcount) 
 				return candidateClusterMatrix, candidateClusterDistance
 			end
 		end
 
 		localcount +=1
 		#Find smallest
+
 		nearstpointindex = argmin(newpointdistance)
 		candidateClusterDistance[pos] = newpointdistance[nearstpointindex]
 		candidateCluster[localcount] = candidatepoints[nearstpointindex]
@@ -198,19 +198,15 @@ function make_candidatecluster!(distanceMatrix::Array{Float64,2},threshold,candi
 		popat!(newpointdistance,nearstpointindex)
 
 		#Update distance 
-		for i in length(candidatepoints):-1:1
-			checkdistance =  distanceMatrix[candidateCluster[localcount],candidatepoints[i]]
-	
-			#Check if the distance should be updated and afterwards exceeds the threshold 
-			if newpointdistance[i] < checkdistance 
-				if checkdistance > threshold
-					popat!(candidatepoints,i)
-					popat!(newpointdistance,i)
-				else 
-					newpointdistance[i]=checkdistance
-				end			
-			end			
-		end
+
+		#Check if any exceed threshold
+		bool = distanceMatrix[candidateCluster[localcount],candidatepoints] .<= threshold
+		newpointdistance = newpointdistance[bool]
+		candidatepoints = candidatepoints[bool]
+
+		#Check if any distance shall be updated 
+		bool1 = distanceMatrix[candidateCluster[localcount],candidatepoints].>newpointdistance
+		newpointdistance[bool1] = distanceMatrix[candidateCluster[localcount],candidatepoints][bool1]
 
 	end
 
@@ -220,9 +216,10 @@ end
 
 function check_alreadymade_cluster(outcluster,currentout,localcount)
 	#Check if there already have been calculated a cluster, identical with the current. 
+	item = sort!(currentout)
 	#Check all other candidate cluster, with the same points 
-	for seed in currentout
-		if sort!(outcluster[1:localcount,seed]) == currentout
+	for seed in item
+		if sort!(outcluster[1:localcount,seed]) == item
 			return true
 		end
 	end
@@ -358,7 +355,7 @@ function print_output(FINISH_CLUTSERTOPRINT,Colnames, PointPosition)
 
 	localcount = 0
 	for item in FINISH_CLUTSERTOPRINT
-		println(item[1:1])
+		println(item[1:end])
 		localcount +=1
 		println(outfile,"-> Cluster" ,localcount)
 		for number in  sort(item[1:argmin(item)-1])
